@@ -1,36 +1,28 @@
 node{
-    stage("Git CheckOut"){
-        git url: 'https://github.com/MithunTechnologiesDevOps/spring-boot-mongo-docker.git',branch: 'master'
+     def mavenHome = tool name: "maven3.6.3"
+     def buildNumber = BUILD_NUMBER
+   stage("checkout code"){
+    git credentialsId: 'd56d514e-4f27-4a59-8a7c-9386d53cd062', url: 'https://github.com/devopstraining2021A/spring-boot-mongo-docker.git'
+   }
+    stage('Build'){
+        sh "${mavenHome}/bin/mvn clean package"
     }
-    
-    stage(" Maven Clean Package"){
-      def mavenHome =  tool name: "Maven-3.6.1", type: "maven"
-      def mavenCMD = "${mavenHome}/bin/mvn"
-      sh "${mavenCMD} clean package"
-    } 
-    
-    stage("Build Dokcer Image") {
-         sh "docker build -t dockerhandson/spring-boot-mongo ."
+    stage ("Build Docker Image"){
+       sh "docker build -t gsreddydocker4546/spring-boot-mongonew ."
     }
-    
-    stage("Docker Push"){
-        withCredentials([string(credentialsId: 'Docker_Hub_Pwd', variable: 'Docker_Hub_Pwd')]) {
-          sh "docker login -u dockerhandson -p ${Docker_Hub_Pwd}"
-        }
-        sh "docker push dockerhandson/spring-boot-mongo"
-        
+   stage("dockerlogin and push the image"){
+    withCredentials([string(credentialsId: 'Docker_Hub_Credentials', variable: 'Docker_Hub_Credentials')]) {
+    sh "docker login -u gsreddydocker4546 -p ${Docker_Hub_Credentials}" 
     }
-    
-    // Remove local image in Jenkins Server
-    stage("Remove Local Image"){
-        sh "docker rmi -f dockerhandson/spring-boot-mongo"
+    sh "docker push gsreddydocker4546/spring-boot-mongonew"
     }
-    
-    stage("Deploy to docker swarm cluster"){
-        sshagent(['Docker_Swarm_Manager_Dev']) {
-		    sh 'scp -o StrictHostKeyChecking=no  docker-compose.yml ubuntu@172.31.47.232:'
-		    //sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.47.232 docker stack rm springboot'
-                    sh 'ssh -o StrictHostKeyChecking=no ubuntu@172.31.47.232 docker stack deploy --prune --compose-file docker-compose.yml springboot'
-        }
+    stage("remove local images"){
+      sh "docker rmi -f gsreddydocker4546/spring-boot-mongonew"
     }
-}
+    stage("deploy to docker stack in docker swarm cluster"){
+     sshagent(['Docker_cluster_master']) {
+      sh "scp -o StrictHostKeyChecking=no  docker-compose.yml ubuntu@172.31.4.24:"
+      sh "ssh -o StrictHostKeyChecking=no ubuntu@172.31.4.24 docker stack deploy --prune  --compose-file docker-compose.yml springstack"
+    }
+   }
+  }
